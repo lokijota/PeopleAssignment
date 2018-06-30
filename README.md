@@ -1,6 +1,6 @@
 # Team people to Customers Assignment
 
-## Problem
+## Goal
 
 I have a team of people, each located in different parts of the UK, that I want to assign to a set of customers based on criteria like travel time or strength of existing relationships.
 
