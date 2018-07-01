@@ -30,6 +30,10 @@ customers = np.array([ #name, address, 0/1/2 - tier
                      ('name2', 'address2', 2)
                    ])
 
+privateauto_travel = np.array([
+                      ('personname1', 'customername1'),
+                      ('personname2', 'customername1'),
+                     ])
 
 alignments = np.array([ #person, customer
                         ('name1', 'name2', 'name1'),
@@ -117,15 +121,9 @@ def distance_in_minutes(origin, destination, mode):
 
   if(destination == 'Guernsey'):
       return 5*60 #assume 5 hours to get there
-
-  try:
-    g_departure_time = directions_result[0]['legs'][0]['departure_time']['text']
-    g_arrival_time = directions_result[0]['legs'][0]['arrival_time']['text']
-  except:
-    print(directions_result[0])
-    
-  dif = datetime.strptime(g_arrival_time,"%I:%M%p") - datetime.strptime(g_departure_time,"%I:%M%p")
-  return math.ceil(dif.seconds/60)
+ 
+  difseconsd = directions_result[0]['legs'][0]['duration']['value']
+  return math.ceil(difseconsd/60)
 
 # Geocoding an address
 # geocode_result = gmaps.geocode('1600 Amphitheatre Parkway, Mountain View, CA')
@@ -142,19 +140,31 @@ def distance_in_minutes(origin, destination, mode):
 # Change this to True if it's the first time running the code. After it a file will be written to DBFS and you can use it as a cache to avoid re-calling Google Maps all the time
 recalculate_distances = False
 
+privateauto_travel_list = privateauto_travel.tolist()
+
 if recalculate_distances == True:
   for indexp, person in enumerate(people):
     for indexc, customer in enumerate(customers):
-      #if(distances[indexp][indexc] == 0):
-      #distances[indexp][indexc] = distance_in_minutes(person[1], customer[1], "transit")
-      if(df_distances.iloc[indexc, indexp] == 0):
-        df_distances.iloc[indexc, indexp] = distance_in_minutes(person[1], customer[1], "transit")
-      print(person[0], "to", customer[1], "takes", df_distances.iloc[indexc, indexp], "minutes")
+      if [person[0], customer[0]] in privateauto_travel_list:
+        means_of_travel = 'driving'
+      else:
+        means_of_travel = 'transit'
+        
+      #if(df_distances.iloc[indexc, indexp] == 0):
+      df_distances.iloc[indexc, indexp] = distance_in_minutes(person[1], customer[1], means_of_travel)
+      print(person[0], "to", customer[1], "takes", df_distances.iloc[indexc, indexp], "mins traveling by ", means_of_travel)
+      
+  #save results to avoid always having to call gmaps
   df_distances.to_json('/dbfs/mnt/hipo/df_distances.json', orient='split')
 else:
+  #read from previous execution
   df_distances = pd.read_json('/dbfs/mnt/hipo/df_distances.json', orient='split')
 
 print(df_distances)
+
+#the visualization below allows sorting, but doesn't support the named row indexes (customer names)
+#spdf = spark.createDataFrame(df_distances)
+#display(spdf)
 
 # COMMAND ----------
 
@@ -392,6 +402,9 @@ ax.scatter(customers_t3[:,4], customers_t3[:,3],c="lightgreen",s=7**2,linewidths
 
 for i, txt in enumerate(customers_t1t2):
   ax.annotate(customers_t1t2[i,0][:3].lower(), (customers_t1t2[i,4], customers_t1t2[i,3]),color='darkgreen', fontsize=12, style='italic')
+
+for i, txt in enumerate(customers_t3):
+  ax.annotate(customers_t3[i,0][:3].lower(), (customers_t3[i,4], customers_t3[i,3]),color='darkgreen', fontsize=12, style='italic')
 
   
 #corners_sx = np.array([-5.728, -5.728, 1.79, 1.79])
