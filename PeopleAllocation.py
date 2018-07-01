@@ -5,7 +5,18 @@
 
 # COMMAND ----------
 
+# MAGIC %md # TO-DO
+# MAGIC 
+# MAGIC - Write customers in the map with a color dependent on the Tier
+# MAGIC - Write team locations in the map with a color dependent on the role 
+# MAGIC - Write the name of the customer/person
+# MAGIC - Draw polygons according to preliminary assignments
+# MAGIC - Write a second table with distances, but just noting the minimum N distances for every given person (or customer) 
+
+# COMMAND ----------
+
 # MAGIC %md ## Setup Connections and prepare data 
+# MAGIC Sample data only used to show the format. The real data is on the auxiliary notebook.
 
 # COMMAND ----------
 
@@ -34,7 +45,6 @@ azure_blobstorage_account = 'storage account name'
 azure_blobstorage_container = 'container name'
 azure_blobstorage_accesskey = 'storage account access key'
 
-
 # COMMAND ----------
 
 # MAGIC %run ./Setup
@@ -43,7 +53,7 @@ azure_blobstorage_accesskey = 'storage account access key'
 
 # MAGIC %md ## Mount Azure Storage
 # MAGIC 
-# MAGIC Mount Azure Storage in the DBFS filesystem
+# MAGIC Mount Azure Storage in the DBFS filesystem. This will contain the UKMap, distances, and any other output
 
 # COMMAND ----------
 
@@ -84,7 +94,7 @@ print("# of people is", np.shape(people)[0])
 
 # MAGIC %md ## Obtain base distances (time to arrive in minutes)
 # MAGIC 
-# MAGIC Obtain distances from people to locations and fill a distance matrix.
+# MAGIC Obtain travel time from people to locations and fill a distance matrix.
 # MAGIC 
 # MAGIC Python library to use google maps from here: https://github.com/googlemaps/google-maps-services-python
 # MAGIC 
@@ -132,7 +142,8 @@ def distance_in_minutes(origin, destination, mode):
 
 # COMMAND ----------
 
-recalculate_distances = True
+# Change this to True if it's the first time running the code. After it a file will be written to DBFS and you can use it as a cache to avoid re-calling Google Maps all the time
+recalculate_distances = False
 
 if recalculate_distances == True:
   for indexp, person in enumerate(people):
@@ -150,7 +161,7 @@ print(df_distances)
 
 # COMMAND ----------
 
-# Get the Latitude and Longitude for all the CSAs and Customers
+# Get the Latitude and Longitude for all the people and Customers and write to the array
 for person in people:
   geocode_result = gmap.geocode(person[1])
   person[3] = geocode_result[0]['geometry']['location']['lat']
@@ -166,6 +177,8 @@ for customer in customers:
 # COMMAND ----------
 
 # MAGIC %md ## Explore data visually and get some statistics
+# MAGIC 
+# MAGIC Varied data exploration experiments.
 
 # COMMAND ----------
 
@@ -174,6 +187,10 @@ print(df_distances.mean().sort_values())
 
 print("What customers are on average closer:")
 print(df_distances.mean(axis=1).sort_values())
+
+# COMMAND ----------
+
+# MAGIC %md ### Any-to-any distances with conditional formatting
 
 # COMMAND ----------
 
@@ -188,7 +205,7 @@ df = df_distances
 #df[df > 150] = 150
 
 #print(df)
-vals = df.round(0) #df.values
+#vals = df.round(0) #df.values
 
 normal = 1-(df - df.min()) / (df.max() - df.min()) #Normalize data to [0, 1] range for color mapping below
 
@@ -202,9 +219,55 @@ ax.set_xlim(-0.5, 5.5)
 fig.subplots_adjust(left=0.22)
 
 display(fig)
-#fig.savefig("table.png")
+
+# Save to file and copy to DBFS
+fig.savefig("/tmp/table_cf.png")
+dbutils.fs.cp("file:///tmp/table_cf.png", "/mnt/hipo/table_cf.png") 
 
 ## TODO: calculate improvement in travel distances (on average)
+
+# COMMAND ----------
+
+# MAGIC %md ### Closest N Customers per person
+
+# COMMAND ----------
+
+#https://stackoverflow.com/questions/16817948/i-have-need-the-n-minimum-index-values-in-a-numpy-array
+topN = 6
+ind = np.argpartition(df_distances, topN, axis=0)[:topN]
+
+closest_distances = df_distances.copy()
+
+# ugly but didn't find another way to do it -- keep only the topN elements per column; +1000 is an inneficient trick
+for y in range(0, ind.shape[1]):
+  for x in range(0, ind.shape[0]):
+    row_to_modify = ind.iloc[x,y]
+    closest_distances.iloc[row_to_modify, y] = closest_distances.iloc[row_to_modify, y] + 1000
+    
+closest_distances[closest_distances < 1000] = np.nan
+closest_distances -= 1000
+
+#Normalize data to [0, 1] range for color mapping below
+normal = 1-(closest_distances - closest_distances.min()) / (closest_distances.max() - closest_distances.min()) 
+normal = (normal.notnull()).astype('float') / 2 #otherwise the maximum in the table gets very dark
+
+closest_distances = closest_distances.replace(np.nan,'') # to avoid printint nan's
+
+#and now generate the image
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.axis('off')
+
+ax.table(cellText=closest_distances.values, rowLabels=closest_distances.index, colLabels=closest_distances.columns, loc='center', cellColours=plt.cm.Greens(normal), animated=True)
+
+ax.set_xlim(-0.5, 5.5)
+fig.subplots_adjust(left=0.22)
+
+display(fig)
+
+# Save to file and copy to DBFS
+fig.savefig("/tmp/table_closest_per_person.png")
+dbutils.fs.cp("file:///tmp/table_closest_per_person.png", "/mnt/hipo/table_closest_per_person.png") 
 
 # COMMAND ----------
 
@@ -298,10 +361,6 @@ display(plt.show())
 #person_distances = person_distances.sort_values(ascending=True)
 
 #print(person_distances)
-
-# COMMAND ----------
-
-customers
 
 # COMMAND ----------
 
@@ -427,8 +486,3 @@ while(np.any(assigned_customers==-1)):
 for i in range(num_people):
   print(people[i][0])
   print(matches[i])
-
-
-# COMMAND ----------
-
-A
