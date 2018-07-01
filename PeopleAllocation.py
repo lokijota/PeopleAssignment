@@ -8,10 +8,10 @@
 # MAGIC %md # TO-DO
 # MAGIC 
 # MAGIC - Write customers in the map with a color dependent on the Tier
+# MAGIC - Plan for exceptions in travel means when calculating travel times (public transport, car)
 # MAGIC - Write team locations in the map with a color dependent on the role 
 # MAGIC - Write the name of the customer/person
 # MAGIC - Draw polygons according to preliminary assignments
-# MAGIC - Write a second table with distances, but just noting the minimum N distances for every given person (or customer) 
 
 # COMMAND ----------
 
@@ -377,16 +377,34 @@ ax.imshow(im,alpha=alpha,extent=(-5.728, 1.79, 49.46, 56.27)) #49.39, 56.14
 ax.axis('tight')
 ax.axis('off')
 
-# Plot the scatter points
-ax.scatter(people[:,4], people[:,3],c="red",s=6**2,linewidths=.2,alpha=.9)
-ax.scatter(customers[:,4], customers[:,3],c="green",s=6**2,linewidths=.2,alpha=.5)
+# Plot the scatter points for people and for customers
+role0 = people[ people[:,2] == '0' ]
+ax.scatter(role0[:,4], role0[:,3],c="blue",s=7**2,linewidths=.2,alpha=.7, marker="v")
 
+role1 = people[ people[:,2] == '1' ]
+ax.scatter(role1[:,4], role1[:,3],c="blue",s=7**2,linewidths=.2,alpha=.7, marker="v")
+
+customers_t1t2 = customers[ customers[:,2] != '3' ]
+ax.scatter(customers_t1t2[:,4], customers_t1t2[:,3],c="darkgreen",s=7**2,linewidths=.2,alpha=.6)
+
+customers_t3 = customers[ customers[:,2] == '3' ]
+ax.scatter(customers_t3[:,4], customers_t3[:,3],c="lightgreen",s=7**2,linewidths=.2,alpha=.6)
+
+#for i, txt in enumerate(people):
+#  ax.annotate(people[i,0][:3], (people[i,4], people[i,3]))
+
+for i, txt in enumerate(customers_t1t2):
+  ax.annotate(customers_t1t2[i,0][:3].lower(), (customers_t1t2[i,4], customers_t1t2[i,3]),color='darkgreen', fontsize=12, style='italic')
+
+  
 #corners_sx = np.array([-5.728, -5.728, 1.79, 1.79])
 #corners_sy = np.array([49.39, 56.14, 49.39, 56.14]) 
 #ax.scatter(corners_sx, corners_sy,c="yellow",s=64,linewidths=1,alpha=1)
 
-
 display(plt.show())
+
+fig.savefig("/tmp/map_with_locations.png")
+dbutils.fs.cp("file:///tmp/map_with_locations.png", "/mnt/hipo/map_with_locations.png") 
 
 # COMMAND ----------
 
