@@ -7,7 +7,6 @@
 
 # MAGIC %md # TO-DO
 # MAGIC 
-# MAGIC - Plan for exceptions in travel means when calculating travel times (public transport, car)
 # MAGIC - Draw polygons according to preliminary assignments
 
 # COMMAND ----------
