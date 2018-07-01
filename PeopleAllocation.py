@@ -271,6 +271,46 @@ dbutils.fs.cp("file:///tmp/table_closest_per_person.png", "/mnt/hipo/table_close
 
 # COMMAND ----------
 
+# MAGIC %md ### Closest N Persons per Customer
+
+# COMMAND ----------
+
+#https://stackoverflow.com/questions/16817948/i-have-need-the-n-minimum-index-values-in-a-numpy-array
+topN = 3
+ind = np.argpartition(df_distances, topN, axis=1)[:30]
+
+closest_distances = df_distances.copy()
+
+# ugly but didn't find another way to do it -- keep only the topN elements per row -- in this case we get the full table so the loop is simpler
+for x in range(0, ind.shape[0]):
+  for y in range(topN, ind.shape[1]):
+    column_to_modify = ind.iloc[x,y]
+    closest_distances.iloc[x, column_to_modify] = np.nan
+
+#Normalize data to [0, 1] range for color mapping below
+normal = 1-(closest_distances - closest_distances.min()) / (closest_distances.max() - closest_distances.min()) 
+normal = (normal.notnull()).astype('float') / 2 #otherwise the maximum in the table gets very dark
+
+closest_distances = closest_distances.replace(np.nan,'') # to avoid printint nan's
+
+#and now generate the image
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.axis('off')
+
+ax.table(cellText=closest_distances.values, rowLabels=closest_distances.index, colLabels=closest_distances.columns, loc='center', cellColours=plt.cm.Greens(normal), animated=True)
+
+ax.set_xlim(-0.5, 5.5)
+fig.subplots_adjust(left=0.22)
+
+display(fig)
+
+# Save to file and copy to DBFS
+fig.savefig("/tmp/table_closest_per_customer.png")
+dbutils.fs.cp("file:///tmp/table_closest_per_customer.png", "/mnt/hipo/table_closest_per_customer.png") 
+
+# COMMAND ----------
+
 # MAGIC %md ## Mapped data
 # MAGIC Explore using geographical maps to show information using gmap's APIs
 # MAGIC 
@@ -333,13 +373,13 @@ fig.subplots_adjust(left=0,right=1,bottom=0,top=1)
 # Display the image
 ax.imshow(im,alpha=alpha,extent=(-5.728, 1.79, 49.46, 56.27)) #49.39, 56.14
 
-# Turn off axes and set axes limits
+# Turn off axes and set axes limit
 ax.axis('tight')
 ax.axis('off')
 
 # Plot the scatter points
-ax.scatter(people[:,3], people[:,2],c="red",s=6**2,linewidths=.2,alpha=.9)
-ax.scatter(customers[:,3], customers[:,2],c="green",s=6**2,linewidths=.2,alpha=.5)
+ax.scatter(people[:,4], people[:,3],c="red",s=6**2,linewidths=.2,alpha=.9)
+ax.scatter(customers[:,4], customers[:,3],c="green",s=6**2,linewidths=.2,alpha=.5)
 
 #corners_sx = np.array([-5.728, -5.728, 1.79, 1.79])
 #corners_sy = np.array([49.39, 56.14, 49.39, 56.14]) 
