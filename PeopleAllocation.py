@@ -7,10 +7,7 @@
 
 # MAGIC %md # TO-DO
 # MAGIC 
-# MAGIC - Write customers in the map with a color dependent on the Tier
 # MAGIC - Plan for exceptions in travel means when calculating travel times (public transport, car)
-# MAGIC - Write team locations in the map with a color dependent on the role 
-# MAGIC - Write the name of the customer/person
 # MAGIC - Draw polygons according to preliminary assignments
 
 # COMMAND ----------
